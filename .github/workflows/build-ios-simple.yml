@@ -1,0 +1,71 @@
+name: Build iOS (Simple - No Signing)
+
+on:
+  workflow_dispatch:  # Chỉ chạy khi trigger thủ công
+    inputs:
+      build_mode:
+        description: 'Build mode'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - profile
+          - release
+
+jobs:
+  build-ios-simple:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+
+    - name: Get dependencies
+      run: flutter pub get
+
+    - name: Analyze code
+      run: flutter analyze --no-fatal-infos
+
+    - name: Build iOS app (no codesign)
+      run: |
+        echo "Building in ${{ inputs.build_mode }} mode..."
+        flutter build ios --${{ inputs.build_mode }} --no-codesign
+
+    - name: Create IPA package
+      run: |
+        mkdir -p output
+        cd build/ios/iphoneos
+        mkdir -p Payload
+        cp -r Runner.app Payload/
+        zip -r ../../../output/FirstApp-${{ inputs.build_mode }}.ipa Payload
+        rm -rf Payload
+        echo "✅ IPA created: FirstApp-${{ inputs.build_mode }}.ipa"
+        ls -lh ../../../output/
+
+    - name: Upload IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: firstapp-ios-${{ inputs.build_mode }}
+        path: output/*.ipa
+        retention-days: 30
+
+    - name: Build info
+      run: |
+        echo "## 📱 Build Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Mode**: ${{ inputs.build_mode }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform**: iOS" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Download" >> $GITHUB_STEP_SUMMARY
+        echo "Check the **Artifacts** section below to download the IPA file." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ **Note**: This IPA is unsigned and can only be used for testing on simulator or with proper provisioning." >> $GITHUB_STEP_SUMMARY
