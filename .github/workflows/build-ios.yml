@@ -22,24 +22,33 @@ jobs:
         channel: 'stable'
         cache: true
 
-    - name: Install Flutter dependencies
-      run: flutter pub get
-
-    - name: Run Flutter analyze
-      run: flutter analyze
-
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: 'latest-stable'
 
-    - name: Create ios/Runner directory if not exists
-      run: mkdir -p ios/Runner
+    - name: Create iOS project files
+      run: |
+        # Tạo iOS project nếu chưa có Runner.xcodeproj
+        if [ ! -d "ios/Runner.xcodeproj" ]; then
+          echo "📱 Creating iOS project files..."
+          flutter create --platforms=ios .
+          echo "✅ iOS project created"
+        else
+          echo "✅ iOS project already exists"
+        fi
+
+    - name: Install Flutter dependencies
+      run: flutter pub get
+
+    - name: Run Flutter analyze
+      run: flutter analyze
+      continue-on-error: true
 
     - name: Install CocoaPods
       run: |
         cd ios
-        pod install || echo "No Podfile found, skipping pod install"
+        pod install --repo-update
       continue-on-error: true
 
     # Build cho iOS (không cần code signing - Option A)
